@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fact-Check Result - TweetVerify</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+          sans-serif;
+        background: #f5f5f5;
+        color: #333;
+        line-height: 1.6;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .header h1 {
+        font-size: 24px;
+        margin-bottom: 5px;
+      }
+
+      .header p {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+
+      .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #1da1f2;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .error {
+        background: #fee;
+        border-left: 4px solid #e00;
+        padding: 15px;
+        border-radius: 8px;
+      }
+
+      .tweet-text {
+        font-size: 18px;
+        padding: 15px;
+        background: #f9f9f9;
+        border-left: 4px solid #1da1f2;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+
+      .overall-assessment {
+        padding: 15px;
+        background: #e8f5fe;
+        border-radius: 8px;
+        margin-top: 10px;
+      }
+
+      .claim {
+        margin-bottom: 25px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .claim:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .claim-text {
+        font-weight: 600;
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      .verdict {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+
+      .verdict.true {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .verdict.partially-true {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .verdict.false {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .verdict.unverifiable {
+        background: #e2e3e5;
+        color: #383d41;
+      }
+
+      .confidence {
+        display: inline-block;
+        margin-left: 10px;
+        font-size: 13px;
+        color: #666;
+      }
+
+      .explanation {
+        margin: 10px 0;
+        color: #555;
+      }
+
+      .context {
+        margin: 10px 0;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .sources {
+        margin-top: 10px;
+      }
+
+      .sources-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+
+      .source-link {
+        display: block;
+        color: #1da1f2;
+        text-decoration: none;
+        font-size: 13px;
+        margin-bottom: 5px;
+        word-break: break-all;
+      }
+
+      .source-link:hover {
+        text-decoration: underline;
+      }
+
+      .timestamp {
+        text-align: center;
+        color: #999;
+        font-size: 13px;
+        margin-top: 20px;
+      }
+
+      .no-claims {
+        text-align: center;
+        padding: 30px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>TweetVerify</h1>
+        <p>AI-Powered Fact Checker</p>
+      </div>
+
+      <div id="content">
+        <div class="card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading fact-check results...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function getRequestId() {
+        const pathParts = window.location.pathname.split('/');
+        return pathParts[pathParts.length - 1] || new URLSearchParams(window.location.search).get('id');
+      }
+
+      function formatVerdict(verdict) {
+        return verdict.toLowerCase().replace(/ /g, '-');
+      }
+
+      function formatDate(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleString();
+      }
+
+      function renderResult(result) {
+        const content = document.getElementById('content');
+
+        if (result.status === 'processing') {
+          content.innerHTML = `
+            <div class="card">
+              <div class="loading">
+                <div class="spinner"></div>
+                <p>Fact-checking in progress...</p>
+                <p style="font-size: 14px; margin-top: 10px;">This usually takes 30-60 seconds</p>
+              </div>
+            </div>
+          `;
+          setTimeout(fetchResult, 3000);
+          return;
+        }
+
+        if (result.status === 'error') {
+          content.innerHTML = `
+            <div class="card">
+              <div class="error">
+                <h3>Error</h3>
+                <p>${result.error || 'An error occurred during fact-checking'}</p>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '<div class="card">';
+
+        html += `<div class="tweet-text">${escapeHtml(result.tweet)}</div>`;
+
+        if (result.tweetUrl) {
+          html += `<p style="margin-bottom: 15px;"><a href="${escapeHtml(result.tweetUrl)}" target="_blank" style="color: #1da1f2;">View original tweet</a></p>`;
+        }
+
+        if (result.claims.length === 0) {
+          html += `<div class="no-claims">No verifiable factual claims found in this tweet.</div>`;
+        } else {
+          html += '<h2 style="margin-bottom: 20px; font-size: 20px;">Fact-Check Results</h2>';
+
+          result.claims.forEach((claim, index) => {
+            const verdictClass = formatVerdict(claim.verdict.verdict);
+            html += `
+              <div class="claim">
+                <div class="claim-text">${index + 1}. ${escapeHtml(claim.claim)}</div>
+                <div>
+                  <span class="verdict ${verdictClass}">${claim.verdict.verdict}</span>
+                  <span class="confidence">Confidence: ${claim.verdict.confidence}</span>
+                </div>
+                <div class="explanation">${escapeHtml(claim.verdict.explanation)}</div>
+            `;
+
+            if (claim.verdict.context) {
+              html += `<div class="context"><strong>Context:</strong> ${escapeHtml(claim.verdict.context)}</div>`;
+            }
+
+            if (claim.sources && claim.sources.length > 0) {
+              html += '<div class="sources"><div class="sources-title">Sources:</div>';
+              claim.sources.forEach((source) => {
+                html += `<a href="${escapeHtml(source)}" target="_blank" class="source-link">${escapeHtml(source)}</a>`;
+              });
+              html += '</div>';
+            }
+
+            html += '</div>';
+          });
+        }
+
+        if (result.overallAssessment) {
+          html += `<div class="overall-assessment"><strong>Overall Assessment:</strong> ${escapeHtml(result.overallAssessment)}</div>`;
+        }
+
+        html += `<div class="timestamp">Checked on ${formatDate(result.checkedAt)}</div>`;
+        html += '</div>';
+
+        content.innerHTML = html;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      async function fetchResult() {
+        const requestId = getRequestId();
+
+        if (!requestId) {
+          document.getElementById('content').innerHTML = `
+            <div class="card">
+              <div class="error">
+                <h3>Error</h3>
+                <p>No request ID provided</p>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/get-result?requestId=${encodeURIComponent(requestId)}`);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          renderResult(result);
+        } catch (error) {
+          document.getElementById('content').innerHTML = `
+            <div class="card">
+              <div class="error">
+                <h3>Error Loading Result</h3>
+                <p>${error.message}</p>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      fetchResult();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@3.0.0",
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "ANTHROPIC_API_KEY": "@anthropic_api_key",
+    "BRAVE_SEARCH_API_KEY": "@brave_search_api_key"
+  }
+}
