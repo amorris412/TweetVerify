@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { waitUntil } from '@vercel/functions';
 import {
   extractClaims,
   generateSearchQueries,
@@ -212,13 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const baseUrl = `${protocol}://${host}`;
 
   // Use waitUntil to keep function alive during background processing
-  const processingPromise = processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl);
-
-  // @ts-ignore - Vercel waitUntil API
-  if (typeof res.waitUntil === 'function') {
-    // @ts-ignore
-    res.waitUntil(processingPromise);
-  }
+  waitUntil(processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl));
 
   return res.status(200).json({
     requestId,
