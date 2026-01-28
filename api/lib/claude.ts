@@ -49,6 +49,8 @@ If there are no verifiable factual claims, return an empty array: []
 
 Do not include opinions, subjective statements, or future predictions. Only extract claims that can be fact-checked against evidence.`;
 
+  console.log('[extractClaims] Calling Claude with tweet:', tweetText);
+
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1024,
@@ -60,13 +62,19 @@ Do not include opinions, subjective statements, or future predictions. Only extr
     ],
   });
 
+  console.log('[extractClaims] Claude response:', JSON.stringify(message, null, 2));
+
   const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+
+  console.log('[extractClaims] Response text:', responseText);
 
   try {
     const claims = JSON.parse(responseText);
+    console.log('[extractClaims] Parsed claims:', claims);
     return Array.isArray(claims) ? claims : [];
   } catch (error) {
-    console.error('Failed to parse claims JSON:', error);
+    console.error('[extractClaims] Failed to parse claims JSON:', error);
+    console.error('[extractClaims] Raw response was:', responseText);
     return [];
   }
 }

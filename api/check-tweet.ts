@@ -56,7 +56,7 @@ async function processFactCheck(
 
     const claims = await extractClaims(tweetText);
 
-    console.log(`[${requestId}] Extracted ${claims.length} claims`);
+    console.log(`[${requestId}] Extracted ${claims.length} claims:`, JSON.stringify(claims));
 
     if (claims.length === 0) {
       const result: FactCheckResult = {
