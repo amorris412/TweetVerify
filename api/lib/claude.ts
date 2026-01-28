@@ -69,7 +69,11 @@ Do not include opinions, subjective statements, or future predictions. Only extr
   console.log('[extractClaims] Response text:', responseText);
 
   try {
-    const claims = JSON.parse(responseText);
+    // Strip markdown code fences if present
+    const jsonText = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    console.log('[extractClaims] Cleaned JSON:', jsonText);
+
+    const claims = JSON.parse(jsonText);
     console.log('[extractClaims] Parsed claims:', claims);
     return Array.isArray(claims) ? claims : [];
   } catch (error) {
@@ -119,7 +123,9 @@ Make queries specific and likely to find authoritative sources.`;
   const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
 
   try {
-    const queries = JSON.parse(responseText);
+    // Strip markdown code fences if present
+    const jsonText = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    const queries = JSON.parse(jsonText);
     return Array.isArray(queries) ? queries : [];
   } catch (error) {
     console.error('Failed to parse search queries JSON:', error);
@@ -174,7 +180,9 @@ Be precise, cite specific evidence, and note important context.`;
   const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
 
   try {
-    const verdict = JSON.parse(responseText);
+    // Strip markdown code fences if present
+    const jsonText = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    const verdict = JSON.parse(jsonText);
     return verdict as ClaimVerdict;
   } catch (error) {
     console.error('Failed to parse verdict JSON:', error);
