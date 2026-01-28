@@ -197,11 +197,27 @@ export default {
       });
     }
 
-    const { tweetText, tweetUrl, ntfyTopic } = body as {
+    let { tweetText, tweetUrl, ntfyTopic } = body as {
       tweetText?: string;
       tweetUrl?: string;
       ntfyTopic?: string;
     };
+
+    // If tweetText not provided, try to extract from tweetUrl
+    if (!tweetText && tweetUrl) {
+      try {
+        const response = await fetch(tweetUrl);
+        const html = await response.text();
+
+        // Try to extract from og:description meta tag
+        const ogDescMatch = html.match(/<meta property="og:description" content="([^"]+)"/);
+        if (ogDescMatch && ogDescMatch[1]) {
+          tweetText = ogDescMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+        }
+      } catch (error) {
+        console.error('Failed to extract tweet text from URL:', error);
+      }
+    }
 
     if (!tweetText || typeof tweetText !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing or invalid tweetText' }), {
