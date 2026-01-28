@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { waitUntil } from '@vercel/functions';
 import {
   extractClaims,
@@ -179,46 +178,74 @@ async function processFactCheck(
 /**
  * API endpoint: POST /api/check-tweet
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+export default {
+  async fetch(request: Request) {
+    if (request.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-  const { tweetText, tweetUrl, ntfyTopic } = req.body;
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-  if (!tweetText || typeof tweetText !== 'string') {
-    return res.status(400).json({ error: 'Missing or invalid tweetText' });
-  }
+    const { tweetText, tweetUrl, ntfyTopic } = body;
 
-  if (tweetText.length > 1000) {
-    return res.status(400).json({ error: 'Tweet text too long (max 1000 characters)' });
-  }
+    if (!tweetText || typeof tweetText !== 'string') {
+      return new Response(JSON.stringify({ error: 'Missing or invalid tweetText' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-  const requestId = generateRequestId();
+    if (tweetText.length > 1000) {
+      return new Response(
+        JSON.stringify({ error: 'Tweet text too long (max 1000 characters)' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
-  const initialResult: FactCheckResult = {
-    requestId,
-    status: 'processing',
-    tweet: tweetText,
-    tweetUrl,
-    claims: [],
-    overallAssessment: '',
-    checkedAt: new Date().toISOString(),
-  };
+    const requestId = generateRequestId();
 
-  await storeResult(initialResult);
+    const initialResult: FactCheckResult = {
+      requestId,
+      status: 'processing',
+      tweet: tweetText,
+      tweetUrl,
+      claims: [],
+      overallAssessment: '',
+      checkedAt: new Date().toISOString(),
+    };
 
-  const protocol = req.headers['x-forwarded-proto'] || 'http';
-  const host = req.headers.host || 'localhost:3000';
-  const baseUrl = `${protocol}://${host}`;
+    await storeResult(initialResult);
 
-  // Use waitUntil to keep function alive during background processing
-  waitUntil(processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl));
+    const url = new URL(request.url);
+    const protocol = request.headers.get('x-forwarded-proto') || url.protocol.replace(':', '');
+    const host = request.headers.get('host') || url.host;
+    const baseUrl = `${protocol}://${host}`;
 
-  return res.status(200).json({
-    requestId,
-    status: 'processing',
-    estimatedTime: '30-60 seconds',
-    resultUrl: `${baseUrl}/result/${requestId}`,
-  });
-}
+    // Use waitUntil to keep function alive during background processing
+    waitUntil(processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl));
+
+    return new Response(
+      JSON.stringify({
+        requestId,
+        status: 'processing',
+        estimatedTime: '30-60 seconds',
+        resultUrl: `${baseUrl}/result/${requestId}`,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  },
+};
