@@ -4,6 +4,120 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+/**
+ * Use Claude to extract tweet content from search results
+ */
+export async function extractTweetFromSearchResults(searchResultsText: string): Promise<string | null> {
+  const prompt = `I have search results about a tweet but cannot access the tweet directly. Extract the actual tweet text from these search results.
+
+Search Results:
+${searchResultsText}
+
+Return ONLY the tweet text itself, nothing else. If you cannot find the tweet text in the results, return "NOT_FOUND".`;
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const content = response.content[0];
+    if (content.type === 'text') {
+      const extracted = content.text.trim();
+      if (extracted === 'NOT_FOUND' || extracted.length < 10) {
+        return null;
+      }
+      return extracted;
+    }
+  } catch (error) {
+    console.error('Error using Claude to extract tweet:', error);
+  }
+
+  return null;
+}
+
+/**
+ * Use Claude's vision API to extract tweet text from a screenshot
+ */
+export async function extractTweetFromImage(
+  imageBase64: string,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' = 'image/jpeg'
+): Promise<string | null> {
+  console.log(`Calling Claude Vision API with image (${imageBase64.length} bytes, ${mediaType})`);
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType,
+                data: imageBase64,
+              },
+            },
+            {
+              type: 'text',
+              text: `Describe what you see in this image, then extract any tweet or social media post text.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    console.log(`Claude Vision API response - stop_reason: ${response.stop_reason}, content blocks: ${response.content.length}`);
+
+    const content = response.content[0];
+    console.log(`Claude response content type: ${content.type}`);
+
+    if (content.type === 'text') {
+      const fullResponse = content.text.trim();
+      console.log(`Claude vision full response (${fullResponse.length} chars): "${fullResponse}"`);
+
+      // For now, just return whatever Claude says (we'll parse it on the client side if needed)
+      if (fullResponse.length < 5) {
+        console.log(`Response too short (${fullResponse.length} chars)`);
+        return null;
+      }
+
+      // Try to extract just the tweet text if Claude gave us a description + tweet
+      // Look for patterns like "The tweet says:" or quoted text
+      const tweetMatch = fullResponse.match(/"([^"]+)"/);
+      if (tweetMatch) {
+        console.log(`✓ Extracted quoted text: "${tweetMatch[1]}"`);
+        return tweetMatch[1];
+      }
+
+      // Otherwise return the full response
+      console.log(`✓ Returning full Claude response`);
+      return fullResponse;
+    } else {
+      console.log(`Unexpected content type from Claude: ${JSON.stringify(content)}`);
+    }
+  } catch (error) {
+    console.error('❌ Error calling Claude Vision API:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    // Log the full error object
+    console.error('Full error object:', JSON.stringify(error, null, 2));
+
+    // Re-throw the error so we can see it in the API response
+    throw new Error(`Claude Vision API failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  console.log('Returning null - extraction failed');
+  return null;
+}
+
 export interface Claim {
   claim: string;
   type: string;

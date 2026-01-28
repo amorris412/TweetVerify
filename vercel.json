@@ -4,5 +4,11 @@
     "api/**/*.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/result/:id",
+      "destination": "/api/result/:id"
+    }
+  ]
 }
