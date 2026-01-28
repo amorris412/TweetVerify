@@ -6,11 +6,10 @@ AI-powered tweet fact-checker using Claude Vision API and iOS Shortcuts. Take a 
 
 ## Features
 
-- 📸 **Screenshot-based** - No manual text entry required
-- 🤖 **Claude Vision** - Automatically extracts tweet text from screenshots
-- 🔍 **Brave Search** - Finds authoritative sources for fact-checking
-- ⚡ **Fast** - Results in 30-60 seconds
-- 📱 **iOS Integration** - One-tap sharing from X app
+-  **Screenshot-based** - No manual text entry required
+-  **Claude Vision** - Automatically extracts tweet text from screenshots
+-  **Brave Search** - Finds authoritative sources for fact-checking
+-  **iOS Integration** - One-tap sharing from X app
 
 ## How It Works
 
