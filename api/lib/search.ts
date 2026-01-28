@@ -33,7 +33,7 @@ export async function searchWeb(query: string, limit: number = 5): Promise<Searc
       return [];
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (!data.web?.results) {
       return [];
