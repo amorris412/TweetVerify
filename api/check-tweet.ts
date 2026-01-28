@@ -211,7 +211,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const host = req.headers.host || 'localhost:3000';
   const baseUrl = `${protocol}://${host}`;
 
-  processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl);
+  // Use waitUntil to keep function alive during background processing
+  const processingPromise = processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl);
+
+  // @ts-ignore - Vercel waitUntil API
+  if (typeof res.waitUntil === 'function') {
+    // @ts-ignore
+    res.waitUntil(processingPromise);
+  }
 
   return res.status(200).json({
     requestId,
