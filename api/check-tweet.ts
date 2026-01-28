@@ -187,7 +187,7 @@ export default {
       });
     }
 
-    let body;
+    let body: any;
     try {
       body = await request.json();
     } catch (error) {
@@ -197,7 +197,11 @@ export default {
       });
     }
 
-    const { tweetText, tweetUrl, ntfyTopic } = body;
+    const { tweetText, tweetUrl, ntfyTopic } = body as {
+      tweetText?: string;
+      tweetUrl?: string;
+      ntfyTopic?: string;
+    };
 
     if (!tweetText || typeof tweetText !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing or invalid tweetText' }), {
