@@ -13,7 +13,16 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
       res.setHeader('Content-Type', 'text/html');
       return res.status(200).send(html);
-    } catch (error) {
-      return res.status(500).send('Error loading result page');
+    } catch {
+      // Fallback: try __dirname-relative path (Vercel bundles files here)
+      try {
+        const altPath = join(__dirname, '..', '..', 'public', 'result.html');
+        const html = readFileSync(altPath, 'utf-8');
+
+        res.setHeader('Content-Type', 'text/html');
+        return res.status(200).send(html);
+      } catch {
+        return res.status(500).send('Error loading result page');
+      }
     }
 }
