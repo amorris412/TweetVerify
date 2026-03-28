@@ -1,3 +1,4 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -5,21 +6,14 @@ import { join } from 'path';
  * Dynamic route: /result/:id
  * Serves the result.html page
  */
-export default {
-  async fetch(_request: Request) {
+export default async function handler(_req: VercelRequest, res: VercelResponse) {
     try {
       const htmlPath = join(process.cwd(), 'public', 'result.html');
       const html = readFileSync(htmlPath, 'utf-8');
 
-      return new Response(html, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      });
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(html);
     } catch (error) {
-      return new Response('Error loading result page', {
-        status: 500,
-        headers: { 'Content-Type': 'text/plain' },
-      });
+      return res.status(500).send('Error loading result page');
     }
-  },
-};
+}

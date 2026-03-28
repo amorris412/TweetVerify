@@ -1,3 +1,4 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { waitUntil } from '@vercel/functions';
 import {
   extractClaims,
@@ -180,23 +181,15 @@ async function processFactCheck(
 /**
  * API endpoint: POST /api/check-tweet
  */
-export default {
-  async fetch(request: Request) {
-    if (request.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-        status: 405,
-        headers: { 'Content-Type': 'application/json' },
-      });
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    let body: any;
-    try {
-      body = await request.json();
-    } catch (error) {
-      return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const body = req.body;
+
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({ error: 'Invalid JSON' });
     }
 
     let { tweetText, tweetUrl, ntfyTopic, image, imageType } = body as {
@@ -238,16 +231,10 @@ export default {
 
       // Validate base64 string
       if (!image || image.length < 100) {
-        return new Response(
-          JSON.stringify({
-            error: 'Invalid image data',
-            details: `Image data is too short or missing. Received ${image?.length || 0} bytes. Make sure the shortcut is encoding the image correctly.`,
-          }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        return res.status(400).json({
+          error: 'Invalid image data',
+          details: `Image data is too short or missing. Received ${image?.length || 0} bytes. Make sure the shortcut is encoding the image correctly.`,
+        });
       }
 
       try {
@@ -258,37 +245,24 @@ export default {
         } else {
           console.error('❌ Claude Vision returned null - could not extract tweet text');
 
-          // Check Vercel logs for detailed error: vercel logs https://tweet-verify.vercel.app
-          return new Response(
-            JSON.stringify({
-              error: 'Could not extract tweet text from image',
-              details: `Claude Vision API returned null/NOT_FOUND. Image received: ${mediaType}, ${image.length} bytes. Check Vercel logs for Claude's actual response.`,
-              debugInfo: {
-                imageFormat: mediaType,
-                base64Length: image.length,
-                base64Preview: image.substring(0, 50),
-                suggestion: 'Try a different screenshot or check if image is corrupted'
-              }
-            }),
-            {
-              status: 400,
-              headers: { 'Content-Type': 'application/json' },
+          return res.status(400).json({
+            error: 'Could not extract tweet text from image',
+            details: `Claude Vision API returned null/NOT_FOUND. Image received: ${mediaType}, ${image.length} bytes. Check Vercel logs for Claude's actual response.`,
+            debugInfo: {
+              imageFormat: mediaType,
+              base64Length: image.length,
+              base64Preview: image.substring(0, 50),
+              suggestion: 'Try a different screenshot or check if image is corrupted'
             }
-          );
+          });
         }
       } catch (error) {
         console.error('Error extracting tweet from image:', error);
-        return new Response(
-          JSON.stringify({
-            error: 'Failed to process image',
-            details: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack : undefined,
-          }),
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        return res.status(500).json({
+          error: 'Failed to process image',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       }
     }
 
@@ -450,31 +424,19 @@ export default {
       // Last resort fallback - return a helpful error
       if (!tweetText) {
         console.log('All extraction methods failed');
-        return new Response(
-          JSON.stringify({
-            error: 'Unable to extract tweet content. Please try copying and pasting the tweet text manually or try again later.',
-            details: 'Tweet content could not be extracted from the URL. X/Twitter may be blocking automated access.'
-          }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        return res.status(400).json({
+          error: 'Unable to extract tweet content. Please try copying and pasting the tweet text manually or try again later.',
+          details: 'Tweet content could not be extracted from the URL. X/Twitter may be blocking automated access.'
+        });
       }
     }
 
     if (!tweetText || typeof tweetText !== 'string') {
-      return new Response(JSON.stringify({ error: 'Missing or invalid tweetText' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(400).json({ error: 'Missing or invalid tweetText' });
     }
 
     if (tweetText.length > 1000) {
-      return new Response(
-        JSON.stringify({ error: 'Tweet text too long (max 1000 characters)' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return res.status(400).json({ error: 'Tweet text too long (max 1000 characters)' });
     }
 
     const requestId = generateRequestId();
@@ -491,25 +453,17 @@ export default {
 
     await storeResult(initialResult);
 
-    const url = new URL(request.url);
-    const protocol = request.headers.get('x-forwarded-proto') || url.protocol.replace(':', '');
-    const host = request.headers.get('host') || url.host;
+    const protocol = (req.headers['x-forwarded-proto'] as string) || 'https';
+    const host = req.headers.host || 'localhost';
     const baseUrl = `${protocol}://${host}`;
 
     // Use waitUntil to keep function alive during background processing
     waitUntil(processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl));
 
-    return new Response(
-      JSON.stringify({
-        requestId,
-        status: 'processing',
-        estimatedTime: '30-60 seconds',
-        resultUrl: `${baseUrl}/result/${requestId}`,
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  },
-};
+    return res.status(200).json({
+      requestId,
+      status: 'processing',
+      estimatedTime: '30-60 seconds',
+      resultUrl: `${baseUrl}/result/${requestId}`,
+    });
+}
