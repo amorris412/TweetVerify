@@ -180,8 +180,7 @@ async function processFactCheck(
 /**
  * API endpoint: POST /api/check-tweet
  */
-export default {
-  async fetch(request: Request) {
+export default async function handler(request: Request) {
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
@@ -511,5 +510,4 @@ export default {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  },
-};
+}

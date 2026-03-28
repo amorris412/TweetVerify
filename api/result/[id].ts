@@ -5,8 +5,7 @@ import { join } from 'path';
  * Dynamic route: /result/:id
  * Serves the result.html page
  */
-export default {
-  async fetch(_request: Request) {
+export default async function handler(_request: Request) {
     try {
       const htmlPath = join(process.cwd(), 'public', 'result.html');
       const html = readFileSync(htmlPath, 'utf-8');
@@ -21,5 +20,4 @@ export default {
         headers: { 'Content-Type': 'text/plain' },
       });
     }
-  },
-};
+}

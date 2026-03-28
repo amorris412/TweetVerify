@@ -3,8 +3,7 @@ import { getResult } from './lib/storage';
 /**
  * API endpoint: GET /api/get-result?requestId=xxx
  */
-export default {
-  async fetch(request: Request) {
+export default async function handler(request: Request) {
     if (request.method !== 'GET') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
@@ -38,5 +37,4 @@ export default {
         'Cache-Control': 's-maxage=60, stale-while-revalidate',
       },
     });
-  },
-};
+}
