@@ -317,7 +317,26 @@
         return div.innerHTML;
       }
 
+      function getResultFromHash() {
+        const hash = window.location.hash;
+        if (!hash || hash.length < 2) return null;
+        try {
+          const encoded = hash.substring(1);
+          const json = atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
+          return JSON.parse(json);
+        } catch (e) {
+          return null;
+        }
+      }
+
       async function fetchResult() {
+        // Try reading result from URL hash first (no storage needed)
+        const hashResult = getResultFromHash();
+        if (hashResult) {
+          renderResult(hashResult);
+          return;
+        }
+
         const requestId = getRequestId();
 
         if (!requestId) {

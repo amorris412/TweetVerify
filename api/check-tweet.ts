@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { waitUntil } from '@vercel/functions';
 import {
   extractClaims,
   generateSearchQueries,
@@ -44,16 +43,13 @@ async function sendNotification(
 }
 
 /**
- * Process tweet fact-checking (async background job)
+ * Run fact-check synchronously and return the result
  */
-async function processFactCheck(
+async function runFactCheck(
   requestId: string,
   tweetText: string,
   tweetUrl: string | undefined,
-  ntfyTopic: string | undefined,
-  baseUrl: string
-) {
-  try {
+): Promise<FactCheckResult> {
     console.log(`[${requestId}] Starting fact-check for tweet: "${tweetText}"`);
 
     const claims = await extractClaims(tweetText);
@@ -61,7 +57,8 @@ async function processFactCheck(
     console.log(`[${requestId}] Extracted ${claims.length} claims:`, JSON.stringify(claims));
 
     if (claims.length === 0) {
-      const result: FactCheckResult = {
+      console.log(`[${requestId}] Complete: No claims found`);
+      return {
         requestId,
         status: 'complete',
         tweet: tweetText,
@@ -70,21 +67,6 @@ async function processFactCheck(
         overallAssessment: 'No verifiable factual claims found in this tweet.',
         checkedAt: new Date().toISOString(),
       };
-
-      await storeResult(result);
-
-      if (ntfyTopic) {
-        await sendNotification(
-          ntfyTopic,
-          'Fact-Check Complete',
-          'No factual claims found',
-          `${baseUrl}/result/${requestId}`,
-          'Unverifiable'
-        );
-      }
-
-      console.log(`[${requestId}] Complete: No claims found`);
-      return;
     }
 
     const claimResults = [];
@@ -120,7 +102,9 @@ async function processFactCheck(
       claimResults.map((cr) => ({ claim: cr.claim, verdict: cr.verdict }))
     );
 
-    const result: FactCheckResult = {
+    console.log(`[${requestId}] Fact-check complete`);
+
+    return {
       requestId,
       status: 'complete',
       tweet: tweetText,
@@ -129,53 +113,6 @@ async function processFactCheck(
       overallAssessment,
       checkedAt: new Date().toISOString(),
     };
-
-    await storeResult(result);
-
-    const primaryVerdict = claimResults[0]?.verdict.verdict || 'Complete';
-
-    if (ntfyTopic) {
-      const summary =
-        claimResults.length === 1
-          ? `${primaryVerdict}: ${claimResults[0].claim.substring(0, 60)}...`
-          : `${claimResults.length} claims analyzed`;
-
-      await sendNotification(
-        ntfyTopic,
-        'Fact-Check Complete',
-        summary,
-        `${baseUrl}/result/${requestId}`,
-        primaryVerdict
-      );
-    }
-
-    console.log(`[${requestId}] Fact-check complete`);
-  } catch (error) {
-    console.error(`[${requestId}] Error during fact-check:`, error);
-
-    const errorResult: FactCheckResult = {
-      requestId,
-      status: 'error',
-      tweet: tweetText,
-      tweetUrl,
-      claims: [],
-      overallAssessment: '',
-      checkedAt: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-
-    await storeResult(errorResult);
-
-    if (ntfyTopic) {
-      await sendNotification(
-        ntfyTopic,
-        'Fact-Check Error',
-        'An error occurred during fact-checking',
-        `${baseUrl}/result/${requestId}`,
-        'Error'
-      );
-    }
-  }
 }
 
 /**
@@ -441,29 +378,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const requestId = generateRequestId();
 
-    const initialResult: FactCheckResult = {
-      requestId,
-      status: 'processing',
-      tweet: tweetText,
-      tweetUrl,
-      claims: [],
-      overallAssessment: '',
-      checkedAt: new Date().toISOString(),
-    };
-
-    await storeResult(initialResult);
-
     const protocol = (req.headers['x-forwarded-proto'] as string) || 'https';
     const host = req.headers.host || 'localhost';
     const baseUrl = `${protocol}://${host}`;
 
-    // Use waitUntil to keep function alive during background processing
-    waitUntil(processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl));
+    // Process fact-check synchronously
+    let result: FactCheckResult;
+    try {
+      result = await runFactCheck(requestId, tweetText, tweetUrl);
+    } catch (error) {
+      result = {
+        requestId,
+        status: 'error',
+        tweet: tweetText,
+        tweetUrl,
+        claims: [],
+        overallAssessment: '',
+        checkedAt: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+
+    await storeResult(result);
+
+    if (ntfyTopic) {
+      const primaryVerdict = result.claims[0]?.verdict.verdict || (result.status === 'error' ? 'Error' : 'Complete');
+      const summary = result.status === 'error'
+        ? 'An error occurred during fact-checking'
+        : result.claims.length === 0
+          ? 'No factual claims found'
+          : result.claims.length === 1
+            ? `${primaryVerdict}: ${result.claims[0].claim.substring(0, 60)}...`
+            : `${result.claims.length} claims analyzed`;
+      await sendNotification(
+        ntfyTopic,
+        result.status === 'error' ? 'Fact-Check Error' : 'Fact-Check Complete',
+        summary,
+        `${baseUrl}/result/${requestId}`,
+        primaryVerdict
+      );
+    }
+
+    // Encode result in URL hash so the result page can render without storage
+    const resultData = Buffer.from(JSON.stringify(result)).toString('base64url');
+    const resultUrl = `${baseUrl}/result/${requestId}#${resultData}`;
 
     return res.status(200).json({
       requestId,
-      status: 'processing',
-      estimatedTime: '30-60 seconds',
-      resultUrl: `${baseUrl}/result/${requestId}`,
+      status: result.status,
+      resultUrl,
+      result,
     });
 }
