@@ -352,7 +352,7 @@
         }
 
         try {
-          const response = await fetch(`/api/get-result?requestId=${encodeURIComponent(requestId)}`);
+          const response = await fetch(`/api/check-tweet?requestId=${encodeURIComponent(requestId)}`);
 
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);

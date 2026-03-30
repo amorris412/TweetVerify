@@ -9,7 +9,7 @@ import {
   extractTweetFromImage,
 } from './lib/claude';
 import { searchMultipleQueries, searchWeb, formatSearchResultsForAnalysis } from './lib/search';
-import { storeResult, generateRequestId, FactCheckResult } from './lib/storage';
+import { storeResult, getResult, generateRequestId, FactCheckResult } from './lib/storage';
 
 /**
  * Send notification via ntfy.sh
@@ -157,6 +157,20 @@ async function processFactCheck(
  * API endpoint: POST /api/check-tweet
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // GET: poll for result (same function = same container = same /tmp)
+    if (req.method === 'GET') {
+      const requestId = req.query.requestId as string | undefined;
+      if (!requestId) {
+        return res.status(400).json({ error: 'Missing requestId' });
+      }
+      const result = await getResult(requestId);
+      if (!result) {
+        return res.status(404).json({ error: 'Result not found' });
+      }
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
+      return res.status(200).json(result);
+    }
+
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed' });
     }
