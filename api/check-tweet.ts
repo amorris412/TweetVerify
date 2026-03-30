@@ -60,7 +60,10 @@ async function processFactCheck(
 
     console.log(`[${requestId}] Extracted ${claims.length} claims:`, JSON.stringify(claims));
 
-    if (claims.length === 0) {
+    // Limit to 3 claims to stay within waitUntil time limit
+    const limitedClaims = claims.slice(0, 3);
+
+    if (limitedClaims.length === 0) {
       const result: FactCheckResult = {
         requestId,
         status: 'complete',
@@ -83,7 +86,7 @@ async function processFactCheck(
 
     const claimResults = [];
 
-    for (const claim of claims) {
+    for (const claim of limitedClaims) {
       console.log(`[${requestId}] Analyzing claim: "${claim.claim}"`);
 
       const searchQueries = await generateSearchQueries(claim.claim, tweetText);
