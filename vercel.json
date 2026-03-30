@@ -1,20 +1,4 @@
 {
-  "version": 2,
-  "framework": null,
-  "functions": {
-    "api/check-tweet.ts": {
-      "maxDuration": 60,
-      "includeFiles": "api/lib/**"
-    },
-    "api/get-result.ts": {
-      "maxDuration": 60,
-      "includeFiles": "api/lib/**"
-    },
-    "api/result/[id].ts": {
-      "maxDuration": 10,
-      "includeFiles": "public/**"
-    }
-  },
   "rewrites": [
     {
       "source": "/result/:id",
