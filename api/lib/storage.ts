@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { ClaimVerdict } from './claude';
 
 export interface FactCheckResult {
@@ -18,11 +20,17 @@ export interface FactCheckResult {
 let kv: any = null;
 
 /**
- * Initialize Vercel KV if available
+ * Initialize Vercel KV if available and configured
  */
 function getKV() {
   if (kv !== null) {
     return kv;
+  }
+
+  // Only try KV if env vars are configured
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    kv = false;
+    return null;
   }
 
   try {
@@ -30,13 +38,26 @@ function getKV() {
     kv = vercelKV;
     return kv;
   } catch (error) {
-    console.log('Vercel KV not available, using in-memory storage');
+    console.log('Vercel KV not available, using filesystem storage');
     kv = false;
     return null;
   }
 }
 
-const inMemoryStore = new Map<string, FactCheckResult>();
+const TMP_DIR = '/tmp/tweetverify';
+
+/**
+ * Ensure tmp directory exists
+ */
+function ensureTmpDir() {
+  try {
+    if (!existsSync(TMP_DIR)) {
+      mkdirSync(TMP_DIR, { recursive: true });
+    }
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Store a fact-check result
@@ -55,7 +76,16 @@ export async function storeResult(result: FactCheckResult): Promise<void> {
     }
   }
 
-  inMemoryStore.set(result.requestId, result);
+  // Fallback: write to /tmp filesystem (persists within same Vercel container)
+  try {
+    ensureTmpDir();
+    writeFileSync(
+      join(TMP_DIR, `${result.requestId}.json`),
+      JSON.stringify(result)
+    );
+  } catch (error) {
+    console.error('Error writing to /tmp:', error);
+  }
 }
 
 /**
@@ -75,7 +105,17 @@ export async function getResult(requestId: string): Promise<FactCheckResult | nu
     }
   }
 
-  return inMemoryStore.get(requestId) || null;
+  // Fallback: read from /tmp filesystem
+  try {
+    const filePath = join(TMP_DIR, `${requestId}.json`);
+    if (existsSync(filePath)) {
+      return JSON.parse(readFileSync(filePath, 'utf-8'));
+    }
+  } catch (error) {
+    console.error('Error reading from /tmp:', error);
+  }
+
+  return null;
 }
 
 /**
