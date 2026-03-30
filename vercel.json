@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/check-tweet.ts": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/result/:id",
