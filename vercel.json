@@ -1,8 +1,6 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "",
-  "outputDirectory": "public",
   "functions": {
     "api/check-tweet.ts": {
       "maxDuration": 60,
