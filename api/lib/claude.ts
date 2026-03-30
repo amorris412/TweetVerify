@@ -161,12 +161,12 @@ Return ONLY a valid JSON array with this structure:
 
 If there are no verifiable factual claims, return an empty array: []
 
-Do not include opinions, subjective statements, or future predictions. Only extract claims that can be fact-checked against evidence.`;
+IMPORTANT: Return at most 3 claims. Pick the most significant and specific claims. Do not include opinions, subjective statements, or future predictions. Only extract claims that can be fact-checked against evidence.`;
 
   console.log('[extractClaims] Calling Claude with tweet:', tweetText);
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-3-haiku-20240307',
     max_tokens: 1024,
     messages: [
       {
@@ -204,7 +204,7 @@ export async function generateSearchQueries(
   claim: string,
   tweetContext: string
 ): Promise<SearchQuery[]> {
-  const prompt = `Generate 2-3 effective search queries to fact-check this claim:
+  const prompt = `Generate 1-2 effective search queries to fact-check this claim:
 
 Claim: "${claim}"
 Original tweet context: "${tweetContext}"
@@ -224,7 +224,7 @@ Return ONLY a valid JSON array with this structure:
 Make queries specific and likely to find authoritative sources.`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-3-haiku-20240307',
     max_tokens: 512,
     messages: [
       {
@@ -240,7 +240,7 @@ Make queries specific and likely to find authoritative sources.`;
     // Strip markdown code fences if present
     const jsonText = responseText.replace(/```json\n?|\n?```/g, '').trim();
     const queries = JSON.parse(jsonText);
-    return Array.isArray(queries) ? queries : [];
+    return Array.isArray(queries) ? queries.slice(0, 2) : [];
   } catch (error) {
     console.error('Failed to parse search queries JSON:', error);
     return [];
@@ -331,7 +331,7 @@ ${verdictSummary}
 Provide a clear, concise overall assessment that captures the main takeaway.`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-3-haiku-20240307',
     max_tokens: 256,
     messages: [
       {
