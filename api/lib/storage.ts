@@ -88,10 +88,16 @@ export async function storeResult(result: FactCheckResult): Promise<void> {
   }
 }
 
+const VALID_REQUEST_ID = /^[0-9a-z_-]{5,30}$/;
+
 /**
  * Retrieve a fact-check result
  */
 export async function getResult(requestId: string): Promise<FactCheckResult | null> {
+  if (!VALID_REQUEST_ID.test(requestId)) {
+    return null;
+  }
+
   const kvStore = getKV();
 
   if (kvStore) {
