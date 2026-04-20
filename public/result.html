@@ -249,11 +249,12 @@
         }
 
         if (result.status === 'error') {
+          const errMsg = escapeHtml(result.error || 'An error occurred during fact-checking');
           content.innerHTML = `
             <div class="card">
               <div class="error">
                 <h3>Error</h3>
-                <p>${result.error || 'An error occurred during fact-checking'}</p>
+                <p>${errMsg}</p>
               </div>
             </div>
           `;
@@ -361,11 +362,12 @@
           const result = await response.json();
           renderResult(result);
         } catch (error) {
+          const fetchErrMsg = escapeHtml(error.message || 'Unknown error');
           document.getElementById('content').innerHTML = `
             <div class="card">
               <div class="error">
                 <h3>Error Loading Result</h3>
-                <p>${error.message}</p>
+                <p>${fetchErrMsg}</p>
               </div>
             </div>
           `;

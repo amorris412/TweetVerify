@@ -192,6 +192,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       imageType?: string;
     };
 
+    // Validate tweetUrl is an actual Twitter/X URL to prevent SSRF
+    if (tweetUrl !== undefined) {
+      try {
+        const parsed = new URL(tweetUrl);
+        const allowed = ['twitter.com', 'www.twitter.com', 'x.com', 'www.x.com'];
+        if (!allowed.includes(parsed.hostname)) {
+          return res.status(400).json({ error: 'Invalid tweetUrl: must be a twitter.com or x.com URL' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'Invalid tweetUrl' });
+      }
+    }
+
+    // Validate ntfyTopic is a safe alphanumeric identifier to prevent SSRF
+    if (ntfyTopic !== undefined && !/^[A-Za-z0-9_-]{1,64}$/.test(ntfyTopic)) {
+      return res.status(400).json({ error: 'Invalid ntfyTopic: must be alphanumeric (max 64 chars)' });
+    }
+
+    // Validate imageType against the allowed set
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+    if (imageType !== undefined && !allowedImageTypes.includes(imageType as any)) {
+      return res.status(400).json({ error: 'Invalid imageType' });
+    }
+
     // Priority 1: If image provided, extract tweet text from screenshot using Claude Vision
     if (!tweetText && image) {
       console.log('Image provided, using Claude Vision to extract tweet text...');
@@ -239,21 +263,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           return res.status(400).json({
             error: 'Could not extract tweet text from image',
-            details: `Claude Vision API returned null/NOT_FOUND. Image received: ${mediaType}, ${image.length} bytes. Check Vercel logs for Claude's actual response.`,
-            debugInfo: {
-              imageFormat: mediaType,
-              base64Length: image.length,
-              base64Preview: image.substring(0, 50),
-              suggestion: 'Try a different screenshot or check if image is corrupted'
-            }
           });
         }
       } catch (error) {
         console.error('Error extracting tweet from image:', error);
         return res.status(500).json({
           error: 'Failed to process image',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined,
         });
       }
     }
