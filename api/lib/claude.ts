@@ -17,7 +17,7 @@ Return ONLY the tweet text itself, nothing else. If you cannot find the tweet te
 
   try {
     const response = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-haiku-4-5',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     });
@@ -48,7 +48,7 @@ export async function extractTweetFromImage(
 
   try {
     const response = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-haiku-4-5',
       max_tokens: 2048,
       messages: [
         {
@@ -166,7 +166,7 @@ IMPORTANT: Return at most 3 claims. Pick the most significant and specific claim
   console.log('[extractClaims] Calling Claude with tweet:', tweetText);
 
   const message = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-haiku-4-5',
     max_tokens: 1024,
     messages: [
       {
@@ -224,7 +224,7 @@ Return ONLY a valid JSON array with this structure:
 Make queries specific and likely to find authoritative sources.`;
 
   const message = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-haiku-4-5',
     max_tokens: 512,
     messages: [
       {
@@ -281,7 +281,7 @@ Guidelines:
 Be precise, cite specific evidence, and note important context.`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2048,
     messages: [
       {
@@ -331,7 +331,7 @@ ${verdictSummary}
 Provide a clear, concise overall assessment that captures the main takeaway.`;
 
   const message = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-haiku-4-5',
     max_tokens: 256,
     messages: [
       {

@@ -51,7 +51,7 @@ See full setup instructions in the deployment section above.
 
 - **Frontend**: Vanilla HTML/CSS/JavaScript
 - **Backend**: TypeScript + Vercel Serverless Functions
-- **AI**: Claude 3 Haiku (Vision), Claude Sonnet 4 (Fact-checking)
+- **AI**: Claude Haiku 4.5 (Vision), Claude Sonnet 4.6 (Fact-checking)
 - **Search**: Brave Search API
 - **Storage**: Vercel KV (Redis)
 
