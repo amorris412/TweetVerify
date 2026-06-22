@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TweetVerify - AI-Powered Tweet Fact Checker</title>
+    <meta
+      name="description"
+      content="AI-powered tweet fact-checker using Claude Vision and iOS Shortcuts. Screenshot any tweet and get instant fact-checking with sources."
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+          sans-serif;
+        background: #f5f5f5;
+        color: #333;
+        line-height: 1.6;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .header {
+        text-align: center;
+        margin: 40px 0 30px;
+      }
+
+      .header h1 {
+        font-size: 32px;
+        margin-bottom: 8px;
+      }
+
+      .header p {
+        color: #666;
+        font-size: 16px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .card h2 {
+        font-size: 20px;
+        margin-bottom: 16px;
+      }
+
+      .steps {
+        list-style: none;
+        counter-reset: step;
+      }
+
+      .steps li {
+        position: relative;
+        padding: 12px 0 12px 44px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .steps li:last-child {
+        border-bottom: none;
+      }
+
+      .steps li::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 12px;
+        width: 28px;
+        height: 28px;
+        background: #1da1f2;
+        color: white;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 28px;
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 8px;
+      }
+
+      .feature {
+        padding: 14px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #1da1f2;
+      }
+
+      .feature strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .feature span {
+        font-size: 14px;
+        color: #555;
+      }
+
+      .status {
+        text-align: center;
+        margin-top: 10px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        background: #e2e3e5;
+        color: #383d41;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .status-pill .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #999;
+      }
+
+      .status-pill.online {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status-pill.online .dot {
+        background: #28a745;
+      }
+
+      .footer {
+        text-align: center;
+        color: #999;
+        font-size: 13px;
+        margin: 24px 0;
+      }
+
+      .footer a {
+        color: #1da1f2;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>TweetVerify</h1>
+        <p>AI-Powered Tweet Fact Checker</p>
+      </div>
+
+      <div class="card">
+        <h2>How It Works</h2>
+        <ol class="steps">
+          <li><strong>Take a screenshot</strong> of any tweet on X/Twitter.</li>
+          <li><strong>Share the screenshot</strong> using the iOS Shortcut.</li>
+          <li><strong>Get results</strong> — a detailed fact-check opens in Safari with verdicts, confidence levels, and sources.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>Features</h2>
+        <div class="features">
+          <div class="feature">
+            <strong>Screenshot-based</strong>
+            <span>No manual text entry required.</span>
+          </div>
+          <div class="feature">
+            <strong>Claude Vision</strong>
+            <span>Automatically extracts tweet text from screenshots.</span>
+          </div>
+          <div class="feature">
+            <strong>Brave Search</strong>
+            <span>Finds authoritative sources for fact-checking.</span>
+          </div>
+          <div class="feature">
+            <strong>iOS Integration</strong>
+            <span>One-tap sharing from the X app.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Service Status</h2>
+        <div class="status">
+          <span id="status-pill" class="status-pill">
+            <span class="dot"></span>
+            <span id="status-text">Checking…</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>
+          Built with Claude &middot;
+          <a href="https://github.com/amorris412/tweetverify" target="_blank" rel="noopener">View on GitHub</a>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      async function checkStatus() {
+        const pill = document.getElementById('status-pill');
+        const text = document.getElementById('status-text');
+        try {
+          const res = await fetch('/api/health', { cache: 'no-store' });
+          if (res.ok) {
+            pill.classList.add('online');
+            text.textContent = 'All systems operational';
+            return;
+          }
+          throw new Error('not ok');
+        } catch (e) {
+          text.textContent = 'Status unavailable';
+        }
+      }
+
+      checkStatus();
+    </script>
+  </body>
+</html>
