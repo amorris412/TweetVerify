@@ -219,7 +219,12 @@
     <script>
       function getRequestId() {
         const pathParts = window.location.pathname.split('/');
-        return pathParts[pathParts.length - 1] || new URLSearchParams(window.location.search).get('id');
+        const last = pathParts[pathParts.length - 1];
+        // Treat empty, "result", and the rewrite placeholder as "no id"
+        if (last && last !== 'result' && last !== 'missing') {
+          return last;
+        }
+        return new URLSearchParams(window.location.search).get('id');
       }
 
       function formatVerdict(verdict) {
@@ -344,8 +349,12 @@
           document.getElementById('content').innerHTML = `
             <div class="card">
               <div class="error">
-                <h3>Error</h3>
-                <p>No request ID provided</p>
+                <h3>Couldn't load a result</h3>
+                <p>The fact-check didn't start. The most common cause is a screenshot
+                that's too large to upload (over ~4.5&nbsp;MB once encoded).</p>
+                <p style="margin-top:10px;">Try again with a smaller or cropped screenshot.
+                If it keeps happening, add a <strong>Resize Image</strong> step (Width 1080)
+                before the upload in your iOS Shortcut.</p>
               </div>
             </div>
           `;

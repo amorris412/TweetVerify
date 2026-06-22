@@ -178,10 +178,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    const protocol = (req.headers['x-forwarded-proto'] as string) || 'https';
+    const host = req.headers.host || 'localhost';
+    const baseUrl = `${protocol}://${host}`;
+
+    // The iOS Shortcut opens `${baseUrl}/result/${requestId}` after POSTing.
+    // If we ever return an error WITHOUT a requestId, the Shortcut opens
+    // `/result/` (empty id), which has no route and renders Vercel's branded
+    // 404 page. So on every failure we still mint a requestId and store an
+    // error result — the Shortcut then lands on a real page that explains what
+    // went wrong instead of a cryptic 404.
+    async function failWithResult(message: string) {
+      const requestId = generateRequestId();
+      try {
+        await storeResult({
+          requestId,
+          status: 'error',
+          tweet: '',
+          claims: [],
+          overallAssessment: '',
+          checkedAt: new Date().toISOString(),
+          error: message,
+        });
+      } catch (e) {
+        console.error('Failed to store error result:', e);
+      }
+      return res.status(200).json({
+        requestId,
+        status: 'error',
+        error: message,
+        resultUrl: `${baseUrl}/result/${requestId}`,
+      });
+    }
+
     const body = req.body;
 
     if (!body || typeof body !== 'object') {
-      return res.status(400).json({ error: 'Invalid JSON' });
+      return failWithResult('Invalid request. Please try sharing the screenshot again.');
     }
 
     let { tweetText, tweetUrl, ntfyTopic, image, imageType } = body as {
@@ -247,10 +280,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Validate base64 string
       if (!image || image.length < 100) {
-        return res.status(400).json({
-          error: 'Invalid image data',
-          details: `Image data is too short or missing. Received ${image?.length || 0} bytes. Make sure the shortcut is encoding the image correctly.`,
-        });
+        return failWithResult(
+          "We couldn't read that screenshot. Please try sharing it again."
+        );
       }
 
       try {
@@ -261,15 +293,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else {
           console.error('❌ Claude Vision returned null - could not extract tweet text');
 
-          return res.status(400).json({
-            error: 'Could not extract tweet text from image',
-          });
+          return failWithResult(
+            "Couldn't find readable tweet text in that screenshot. Make sure the tweet is clearly visible and try again."
+          );
         }
       } catch (error) {
         console.error('Error extracting tweet from image:', error);
-        return res.status(500).json({
-          error: 'Failed to process image',
-        });
+        return failWithResult(
+          'Something went wrong reading the screenshot. Please try again in a moment.'
+        );
       }
     }
 
@@ -431,19 +463,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Last resort fallback - return a helpful error
       if (!tweetText) {
         console.log('All extraction methods failed');
-        return res.status(400).json({
-          error: 'Unable to extract tweet content. Please try copying and pasting the tweet text manually or try again later.',
-          details: 'Tweet content could not be extracted from the URL. X/Twitter may be blocking automated access.'
-        });
+        return failWithResult(
+          'Unable to read the tweet content. Please try sharing the screenshot again, or copy and paste the tweet text instead.'
+        );
       }
     }
 
     if (!tweetText || typeof tweetText !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid tweetText' });
+      return failWithResult(
+        'No tweet text or screenshot was received. Please try sharing the tweet again.'
+      );
     }
 
     if (tweetText.length > 1000) {
-      return res.status(400).json({ error: 'Tweet text too long (max 1000 characters)' });
+      return failWithResult('That tweet is too long to fact-check (over 1000 characters).');
     }
 
     const requestId = generateRequestId();
@@ -459,10 +492,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     await storeResult(initialResult);
-
-    const protocol = (req.headers['x-forwarded-proto'] as string) || 'https';
-    const host = req.headers.host || 'localhost';
-    const baseUrl = `${protocol}://${host}`;
 
     // Use waitUntil to keep function alive during background processing
     waitUntil(processFactCheck(requestId, tweetText, tweetUrl, ntfyTopic, baseUrl));
