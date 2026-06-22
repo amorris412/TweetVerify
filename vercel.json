@@ -8,6 +8,14 @@
     {
       "source": "/result/:id",
       "destination": "/api/result/:id"
+    },
+    {
+      "source": "/result",
+      "destination": "/api/result/missing"
+    },
+    {
+      "source": "/result/",
+      "destination": "/api/result/missing"
     }
   ]
 }
