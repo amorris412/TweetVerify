@@ -1,8 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+import { createMessage } from './anthropic';
+import { MODELS } from './models';
 
 /**
  * Use Claude to extract tweet content from search results
@@ -16,8 +13,8 @@ ${searchResultsText}
 Return ONLY the tweet text itself, nothing else. If you cannot find the tweet text in the results, return "NOT_FOUND".`;
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
+    const response = await createMessage({
+      model: MODELS.fast,
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     });
@@ -47,8 +44,8 @@ export async function extractTweetFromImage(
   console.log(`Calling Claude Vision API with image (${imageBase64.length} bytes, ${mediaType})`);
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
+    const response = await createMessage({
+      model: MODELS.fast,
       max_tokens: 2048,
       messages: [
         {
@@ -165,8 +162,8 @@ IMPORTANT: Return at most 3 claims. Pick the most significant and specific claim
 
   console.log('[extractClaims] Calling Claude with tweet:', tweetText);
 
-  const message = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
+  const message = await createMessage({
+    model: MODELS.fast,
     max_tokens: 1024,
     messages: [
       {
@@ -223,8 +220,8 @@ Return ONLY a valid JSON array with this structure:
 
 Make queries specific and likely to find authoritative sources.`;
 
-  const message = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
+  const message = await createMessage({
+    model: MODELS.fast,
     max_tokens: 512,
     messages: [
       {
@@ -280,8 +277,8 @@ Guidelines:
 
 Be precise, cite specific evidence, and note important context.`;
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+  const message = await createMessage({
+    model: MODELS.analysis,
     max_tokens: 2048,
     messages: [
       {
@@ -330,8 +327,8 @@ ${verdictSummary}
 
 Provide a clear, concise overall assessment that captures the main takeaway.`;
 
-  const message = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
+  const message = await createMessage({
+    model: MODELS.fast,
     max_tokens: 256,
     messages: [
       {
